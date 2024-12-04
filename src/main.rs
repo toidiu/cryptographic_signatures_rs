@@ -10,7 +10,14 @@ use aws_lc_rs::{
 // https://docs.rs/aws-lc-rs/latest/aws_lc_rs/signature/index.html#signing-and-verifying-with-ed25519
 
 const VALID_MESSAGE: &[u8] = b"Transfer $100 to Bob.";
+// Hacker is trying to transer $1000
 const HACKED_MESSAGE: &[u8] = b"Transfer $1000 to Bob.";
+// Bob is now Amy
+const HACKED_MESSAGE_1: &[u8] = b"Transfer $100 to Amy.";
+// Bob is missing a 'b'
+const PACKET_LOSS_MESSAGE: &[u8] = b"Transfer $100 to Bo.";
+// extra space between to and Bob
+const MISTAKE_MESSAGE: &[u8] = b"Transfer $1000 to  Bob.";
 
 fn main() -> Result<(), Unspecified> {
     let key_pair: Ed25519KeyPair = generate_key_pair_for_signature();
@@ -31,13 +38,29 @@ fn main() -> Result<(), Unspecified> {
         //
         // Normally the verifier of the message would parse the inputs to this code out of the
         // protocol message(s) sent by the signer.
-        peer_public_key
-            .verify(VALID_MESSAGE, signature_for_valid_message.as_ref())
-            .expect("verify that the signature is valid for VALID_MESSAGE");
+        let verification_result: Result<(), Unspecified> = peer_public_key
+            .verify(VALID_MESSAGE, signature_for_valid_message.as_ref());
+        // Verify PASSES for VALID_MESSAGE
+        assert!(verification_result.is_ok());
 
-        // Verify the signature fails when attempting to verify the HACKED_MESSAGE!!
         let verification_result: Result<(), Unspecified> =
             peer_public_key.verify(HACKED_MESSAGE, signature_for_valid_message.as_ref());
+        // Verify FAILS for HACKED_MESSAGE!!
+        assert!(verification_result.is_err());
+
+        let verification_result: Result<(), Unspecified> =
+            peer_public_key.verify(HACKED_MESSAGE_1, signature_for_valid_message.as_ref());
+        // Verify FAILS for HACKED_MESSAGE_1!!
+        assert!(verification_result.is_err());
+
+        let verification_result: Result<(), Unspecified> =
+            peer_public_key.verify(PACKET_LOSS_MESSAGE, signature_for_valid_message.as_ref());
+        // Verify FAILS for PACKET_LOSS_MESSAGE!!
+        assert!(verification_result.is_err());
+
+        let verification_result: Result<(), Unspecified> =
+            peer_public_key.verify(MISTAKE_MESSAGE, signature_for_valid_message.as_ref());
+        // Verify FAILS for MISTAKE_MESSAGE!!
         assert!(verification_result.is_err());
     }
 
